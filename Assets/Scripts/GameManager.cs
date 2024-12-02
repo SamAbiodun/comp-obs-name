@@ -1,9 +1,22 @@
 using System.Collections;
+using System.IO;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;  // Add this for TextMeshPro
+
+[System.Serializable]
+public class SaveData
+{
+    public int score;
+    public int comboMultiplier;
+    public int currentCombo;
+    public int correctGuesses;
+    public bool gameCompleted;
+    public List<int> matchedIndices = new List<int>(); // Indices of matched cards
+    public List<Sprite> gameCards = new List<Sprite>();
+}
 
 public class GameManager : MonoBehaviour
 {
@@ -14,6 +27,7 @@ public class GameManager : MonoBehaviour
     public List<Sprite> gameCards = new List<Sprite>();
 
     private bool firstGuess, secondGuess;
+    public static bool gameCompleted;
     private int countGuesses, correctGuesses, gameGuesses, firstGuessIndex, secondGuessIndex;
     private string firstGuessCard, secondGuessCard;
 
@@ -31,12 +45,17 @@ public class GameManager : MonoBehaviour
     private int comboMultiplier;
     private int currentCombo;
 
+    // Persistence
+    private SaveData saveData = new SaveData();
+    private string saveFilePath;
+
     // UI elements for score and combo (using TextMeshProUGUI)
     [SerializeField] private TextMeshProUGUI scoreText;  // Changed to TextMeshProUGUI
     [SerializeField] private TextMeshProUGUI comboText;  // Changed to TextMeshProUGUI
 
     private void Awake()
     {
+        saveFilePath = Application.persistentDataPath + "/saveData.json";
         cards = Resources.LoadAll<Sprite>("Sprites/Icons");
 
         // Get the AudioSource component
@@ -45,12 +64,37 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        Debug.Log(gameCompleted);
+        ResetSave();
         GetButtons();
         ShuffleCards();
         AddGameCards();
         ShuffleGameCards();
         gameGuesses = gameCards.Count / 2;
-        StartCoroutine(RevealAllCards());
+        if (gameCompleted || !File.Exists(saveFilePath))
+        {
+            ResetSave();
+        }
+        // if (File.Exists(saveFilePath) || !gameCompleted)
+        // {
+        //     //LoadGame(); // Load saved game state if it exists
+        // }
+        else
+        {
+            //LoadGame();
+        }
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.S)) // Save when 'S' is pressed
+        {
+            SaveGame();
+        }
+        if (Input.GetKeyDown(KeyCode.L)) // Load when 'L' is pressed
+        {
+            LoadGame();
+        }
     }
 
     void GetButtons()
@@ -134,7 +178,8 @@ public class GameManager : MonoBehaviour
         correctGuesses++;
         if (correctGuesses == gameGuesses)
         {
-            PlaySound(gameOverSound); // Play game over sound
+            PlaySound(gameOverSound);
+            gameCompleted = true;
             Debug.Log($"Game completed in {countGuesses} guesses.");
         }
     }
@@ -149,7 +194,7 @@ public class GameManager : MonoBehaviour
             UpdateScore(10);  // Increase score for correct match
             IncreaseCombo();
             yield return new WaitForSeconds(0.5f);
-            btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0);
+            btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0); // Hide matched cards
             CheckGameEnded();
         }
         else
@@ -164,6 +209,7 @@ public class GameManager : MonoBehaviour
 
         firstGuess = secondGuess = false;
     }
+
 
     void UpdateScore(int points)
     {
@@ -256,12 +302,116 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < btns.Count; i++)
         {
             btns[i].image.sprite = background;
-            btns[i].interactable = true;  // Enable interactions after cards are hidden
+            btns[i].interactable = true;  // Enable interaction
         }
     }
 
     void PlaySound(AudioClip clip)
     {
         audioSource.PlayOneShot(clip);
+    }
+
+    // Save the game state
+    public void SaveGame()
+    {
+        saveData.score = score;
+        saveData.comboMultiplier = comboMultiplier;
+        saveData.currentCombo = currentCombo;
+        saveData.correctGuesses = correctGuesses;
+        saveData.gameCompleted = gameCompleted;
+        saveData.gameCards = gameCards;
+
+        // Save matched card indices
+        saveData.matchedIndices.Clear();  // Clear previous indices
+        for (int i = 0; i < btns.Count; i++)
+        {
+            if (btns[i].image.color.a == 0)  // Transparent cards are matched
+            {
+                saveData.matchedIndices.Add(i);
+            }
+        }
+
+        string json = JsonUtility.ToJson(saveData);
+        File.WriteAllText(saveFilePath, json);
+        Debug.Log("Game saved!");
+    }
+
+
+    public void LoadGame()
+    {
+        if (!File.Exists(saveFilePath))
+        {
+            Debug.LogWarning("Save file not found. Starting a new game.");
+            return;
+        }
+
+        string json = File.ReadAllText(saveFilePath);
+        saveData = JsonUtility.FromJson<SaveData>(json);
+
+        // Restore game state
+        score = saveData.score;
+        comboMultiplier = saveData.comboMultiplier;
+        currentCombo = saveData.currentCombo;
+        correctGuesses = saveData.correctGuesses;
+        gameCards = saveData.gameCards;
+        //gameCompleted = saveData.gameCompleted;
+
+        scoreText.text = "Score: " + score;  // Update score display
+        comboText.text = "Combo: " + comboMultiplier;  // Update combo display
+
+        // Restore matched cards and update the buttons' images
+        for (int i = 0; i < btns.Count; i++)
+        {
+            if (saveData.matchedIndices.Contains(i))  // If the card is already matched
+            {
+                btns[i].image.color = new Color(0, 0, 0, 0);  // Hide matched card (transparent)
+                btns[i].interactable = false;  // Disable interaction for matched card
+            }
+            else  // If the card is not matched
+            {
+                btns[i].image.sprite = saveData.gameCards[i];  // Restore the card image
+                btns[i].interactable = true;  // Enable interaction for unmatched card
+            }
+        }
+
+        Debug.Log("Game loaded successfully!");
+    }
+
+
+    // Reset the game save
+    public void ResetSave()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            File.Delete(saveFilePath);
+            Debug.Log("Save file deleted.");
+        }
+
+        // Optionally, reset the game state here
+        score = 0;
+        comboMultiplier = 1;
+        currentCombo = 0;
+        correctGuesses = 0;
+        gameCompleted = false;
+
+        scoreText.text = "Score: " + score;  // Reset score display
+        comboText.text = "Combo: " + comboMultiplier;  // Reset combo display
+
+        // Reset all cards to their default state
+        for (int i = 0; i < btns.Count; i++)
+        {
+            btns[i].image.sprite = background;
+            btns[i].image.color = Color.white;
+            btns[i].interactable = true;
+        }
+        StartCoroutine(RevealAllCards());  // Show all cards for a short period
+        Debug.Log("Game reset!");
+    }
+
+
+    // Save the game when the application quits
+    private void OnApplicationQuit()
+    {
+        SaveGame();
     }
 }
