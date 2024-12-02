@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.TextCore.Text;
 
 public class GameManager : MonoBehaviour
 {
@@ -12,10 +13,11 @@ public class GameManager : MonoBehaviour
     public Sprite[] cards;
     public List<Sprite> gameCards = new List<Sprite>();
 
+    //check to see which guess has been made
     private bool firstGuess, secondGuess;
 
-    private int guesses, correctGuesses, gameGuesses, firstGuessIndex, secondGuessIndex;
-    private string firstGuessName, secondGuessName;
+    private int countGuesses, correctGuesses, gameGuesses, firstGuessIndex, secondGuessIndex;
+    private string firstGuessCard, secondGuessCard;
 
     private void Awake()
     {
@@ -27,6 +29,8 @@ public class GameManager : MonoBehaviour
         GetButtons();
         ShuffleCards();
         AddGameCards();
+        ShuffleGameCards();
+        gameGuesses = gameCards.Count / 2;
     }
 
     void GetButtons()
@@ -65,10 +69,83 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    void ShuffleGameCards()
+    {
+        for (int i = gameCards.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            Sprite temp = gameCards[i];
+            gameCards[i] = gameCards[randomIndex];
+            gameCards[randomIndex] = temp;
+        }
+    }
+
     
     public void PickCard()
     {
-        string name = EventSystem.current.currentSelectedGameObject.name;
+        //get index
         Debug.Log("clicked card with name " + name);
+
+        if (!firstGuess)
+        {
+            firstGuess = true;
+            firstGuessIndex = int.Parse(EventSystem.current.currentSelectedGameObject.name);
+            Debug.Log("clicked card with name " + EventSystem.current.currentSelectedGameObject.name);
+            //get image name
+            firstGuessCard = gameCards[firstGuessIndex].name;
+            btns[firstGuessIndex].interactable = false;
+            btns[firstGuessIndex].image.sprite = gameCards[firstGuessIndex];
+        }
+        
+        else if (!secondGuess)
+        {
+            secondGuess = true;
+            secondGuessIndex = int.Parse(EventSystem.current.currentSelectedGameObject.name);
+            Debug.Log("clicked card with name " + EventSystem.current.currentSelectedGameObject.name);
+            //get image name
+            secondGuessCard = gameCards[secondGuessIndex].name;
+            btns[secondGuessIndex].interactable = false;
+            btns[secondGuessIndex].image.sprite = gameCards[secondGuessIndex];
+            countGuesses++;
+            StartCoroutine(CheckMatch());
+        }
+
+        
+    }
+
+    void CheckGameEnded()
+    {
+        correctGuesses++;
+        if (correctGuesses == gameGuesses)
+        {
+            Debug.Log($"it took you {countGuesses} to finish the game");
+        }
+    }
+    
+    
+    IEnumerator CheckMatch()
+    {
+        yield return new WaitForSeconds(1f);
+        if (firstGuessCard == secondGuessCard)
+        {
+            yield return new WaitForSeconds(0.5f);
+            //make uninterractable
+            //btns[firstGuessIndex].interactable = btns[secondGuessIndex].interactable = false;
+            
+            //make transparent
+            btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0);
+            CheckGameEnded();
+        }
+
+        else
+        {
+            yield return new WaitForSeconds(0.5f);
+            //if wrong, revert
+            btns[firstGuessIndex].image.sprite = btns[secondGuessIndex].image.sprite = background;
+            btns[firstGuessIndex].interactable = btns[secondGuessIndex].interactable = true;
+        }
+
+        yield return new WaitForSeconds(0.5f);
+        firstGuess = secondGuess = false;
     }
 }

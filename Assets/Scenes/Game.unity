@@ -345,8 +345,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c7b4c7ddd6624957bf3d8c5276895ca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rows: 4
-  columns: 4
+  rows: 2
+  columns: 3
   board: {fileID: 1122108077}
   crd: {fileID: 8959037515757854015, guid: 0971bc749dbd643789883551c80911c4, type: 3}
 --- !u!4 &881101116
@@ -378,6 +378,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   btns: []
   background: {fileID: 21300000, guid: c0fc80875112f4cd9b773b33d076c339, type: 3}
+  cards: []
+  gameCards: []
 --- !u!1 &1122108076
 GameObject:
   m_ObjectHideFlags: 0
