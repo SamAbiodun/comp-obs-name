@@ -16,9 +16,21 @@ public class GameManager : MonoBehaviour
     private int countGuesses, correctGuesses, gameGuesses, firstGuessIndex, secondGuessIndex;
     private string firstGuessCard, secondGuessCard;
 
+    // AudioSource to play sound effects
+    private AudioSource audioSource;
+
+    // Sound effects
+    public AudioClip flipSound;
+    public AudioClip matchSound;
+    public AudioClip mismatchSound;
+    public AudioClip gameOverSound;
+
     private void Awake()
     {
         cards = Resources.LoadAll<Sprite>("Sprites/Icons");
+
+        // Get the AudioSource component
+        audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
@@ -89,6 +101,8 @@ public class GameManager : MonoBehaviour
 
             StartCoroutine(FlipCard(btns[firstGuessIndex], gameCards[firstGuessIndex]));
             btns[firstGuessIndex].interactable = false;
+
+            PlaySound(flipSound); // Play flip sound
         }
         else if (!secondGuess)
         {
@@ -100,6 +114,7 @@ public class GameManager : MonoBehaviour
             btns[secondGuessIndex].interactable = false;
 
             countGuesses++;
+            PlaySound(flipSound); // Play flip sound
             StartCoroutine(CheckMatch());
         }
     }
@@ -109,6 +124,7 @@ public class GameManager : MonoBehaviour
         correctGuesses++;
         if (correctGuesses == gameGuesses)
         {
+            PlaySound(gameOverSound); // Play game over sound
             Debug.Log($"Game completed in {countGuesses} guesses.");
         }
     }
@@ -119,12 +135,14 @@ public class GameManager : MonoBehaviour
 
         if (firstGuessCard == secondGuessCard)
         {
+            PlaySound(matchSound); // Play match sound
             yield return new WaitForSeconds(0.5f);
             btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0);
             CheckGameEnded();
         }
         else
         {
+            PlaySound(mismatchSound); // Play mismatch sound
             yield return new WaitForSeconds(0.5f);
             StartCoroutine(FlipCardBack(btns[firstGuessIndex]));
             StartCoroutine(FlipCardBack(btns[secondGuessIndex]));
@@ -185,7 +203,7 @@ public class GameManager : MonoBehaviour
             yield return null;
         }
     }
-    
+
     IEnumerator RevealAllCards()
     {
         // Show all cards
@@ -204,5 +222,11 @@ public class GameManager : MonoBehaviour
             btns[i].image.sprite = background;
             btns[i].interactable = true;  // Enable interactions after cards are hidden
         }
+    }
+
+    // Helper function to play sound effects
+    void PlaySound(AudioClip clip)
+    {
+        audioSource.PlayOneShot(clip);
     }
 }
