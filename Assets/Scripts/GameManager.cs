@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using UnityEngine.TextCore.Text;
 
 public class GameManager : MonoBehaviour
 {
@@ -13,9 +12,7 @@ public class GameManager : MonoBehaviour
     public Sprite[] cards;
     public List<Sprite> gameCards = new List<Sprite>();
 
-    //check to see which guess has been made
     private bool firstGuess, secondGuess;
-
     private int countGuesses, correctGuesses, gameGuesses, firstGuessIndex, secondGuessIndex;
     private string firstGuessCard, secondGuessCard;
 
@@ -31,6 +28,7 @@ public class GameManager : MonoBehaviour
         AddGameCards();
         ShuffleGameCards();
         gameGuesses = gameCards.Count / 2;
+        StartCoroutine(RevealAllCards());
     }
 
     void GetButtons()
@@ -38,7 +36,8 @@ public class GameManager : MonoBehaviour
         GameObject[] objects = GameObject.FindGameObjectsWithTag("Card");
         for (int i = 0; i < objects.Length; i++)
         {
-            btns.Add(objects[i].GetComponent<Button>());
+            var button = objects[i].GetComponent<Button>();
+            btns.Add(button);
             btns[i].image.sprite = background;
             btns[i].onClick.AddListener(PickCard);
         }
@@ -49,7 +48,7 @@ public class GameManager : MonoBehaviour
         int index = 0;
         for (int i = 0; i < btns.Count; i++)
         {
-            if (index == (btns.Count/2))
+            if (index == (btns.Count / 2))
             {
                 index = 0;
             }
@@ -57,7 +56,7 @@ public class GameManager : MonoBehaviour
             index++;
         }
     }
-    
+
     void ShuffleCards()
     {
         for (int i = cards.Length - 1; i > 0; i--)
@@ -80,37 +79,29 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    
     public void PickCard()
     {
-        //get index
-        Debug.Log("clicked card with name " + name);
-
         if (!firstGuess)
         {
             firstGuess = true;
             firstGuessIndex = int.Parse(EventSystem.current.currentSelectedGameObject.name);
-            Debug.Log("clicked card with name " + EventSystem.current.currentSelectedGameObject.name);
-            //get image name
             firstGuessCard = gameCards[firstGuessIndex].name;
+
+            StartCoroutine(FlipCard(btns[firstGuessIndex], gameCards[firstGuessIndex]));
             btns[firstGuessIndex].interactable = false;
-            btns[firstGuessIndex].image.sprite = gameCards[firstGuessIndex];
         }
-        
         else if (!secondGuess)
         {
             secondGuess = true;
             secondGuessIndex = int.Parse(EventSystem.current.currentSelectedGameObject.name);
-            Debug.Log("clicked card with name " + EventSystem.current.currentSelectedGameObject.name);
-            //get image name
             secondGuessCard = gameCards[secondGuessIndex].name;
+
+            StartCoroutine(FlipCard(btns[secondGuessIndex], gameCards[secondGuessIndex]));
             btns[secondGuessIndex].interactable = false;
-            btns[secondGuessIndex].image.sprite = gameCards[secondGuessIndex];
+
             countGuesses++;
             StartCoroutine(CheckMatch());
         }
-
-        
     }
 
     void CheckGameEnded()
@@ -118,34 +109,100 @@ public class GameManager : MonoBehaviour
         correctGuesses++;
         if (correctGuesses == gameGuesses)
         {
-            Debug.Log($"it took you {countGuesses} to finish the game");
+            Debug.Log($"Game completed in {countGuesses} guesses.");
         }
     }
-    
-    
+
     IEnumerator CheckMatch()
     {
         yield return new WaitForSeconds(1f);
+
         if (firstGuessCard == secondGuessCard)
         {
             yield return new WaitForSeconds(0.5f);
-            //make uninterractable
-            //btns[firstGuessIndex].interactable = btns[secondGuessIndex].interactable = false;
-            
-            //make transparent
             btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0);
             CheckGameEnded();
         }
-
         else
         {
             yield return new WaitForSeconds(0.5f);
-            //if wrong, revert
-            btns[firstGuessIndex].image.sprite = btns[secondGuessIndex].image.sprite = background;
+            StartCoroutine(FlipCardBack(btns[firstGuessIndex]));
+            StartCoroutine(FlipCardBack(btns[secondGuessIndex]));
             btns[firstGuessIndex].interactable = btns[secondGuessIndex].interactable = true;
         }
 
-        yield return new WaitForSeconds(0.5f);
         firstGuess = secondGuess = false;
+    }
+
+    IEnumerator FlipCard(Button button, Sprite newSprite)
+    {
+        RectTransform rt = button.GetComponent<RectTransform>();
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float scale = Mathf.Lerp(1f, 0f, elapsed / (duration / 2));
+            rt.localScale = new Vector3(scale, 1f, 1f);
+            yield return null;
+        }
+
+        button.image.sprite = newSprite;
+
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float scale = Mathf.Lerp(0f, 1f, elapsed / (duration / 2));
+            rt.localScale = new Vector3(scale, 1f, 1f);
+            yield return null;
+        }
+    }
+
+    IEnumerator FlipCardBack(Button button)
+    {
+        RectTransform rt = button.GetComponent<RectTransform>();
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float scale = Mathf.Lerp(1f, 0f, elapsed / (duration / 2));
+            rt.localScale = new Vector3(scale, 1f, 1f);
+            yield return null;
+        }
+
+        button.image.sprite = background;
+
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float scale = Mathf.Lerp(0f, 1f, elapsed / (duration / 2));
+            rt.localScale = new Vector3(scale, 1f, 1f);
+            yield return null;
+        }
+    }
+    
+    IEnumerator RevealAllCards()
+    {
+        // Show all cards
+        for (int i = 0; i < btns.Count; i++)
+        {
+            btns[i].image.sprite = gameCards[i];
+            btns[i].interactable = false;  // Disable interactions while cards are shown
+        }
+
+        // Wait for 1 second
+        yield return new WaitForSeconds(1f);
+
+        // Hide all cards again by setting them to the background
+        for (int i = 0; i < btns.Count; i++)
+        {
+            btns[i].image.sprite = background;
+            btns[i].interactable = true;  // Enable interactions after cards are hidden
+        }
     }
 }
