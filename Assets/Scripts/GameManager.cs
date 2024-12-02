@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using TMPro;  // Add this for TextMeshPro
 
 public class GameManager : MonoBehaviour
 {
@@ -24,6 +25,15 @@ public class GameManager : MonoBehaviour
     public AudioClip matchSound;
     public AudioClip mismatchSound;
     public AudioClip gameOverSound;
+
+    // Score and combo system
+    private int score;
+    private int comboMultiplier;
+    private int currentCombo;
+
+    // UI elements for score and combo (using TextMeshProUGUI)
+    [SerializeField] private TextMeshProUGUI scoreText;  // Changed to TextMeshProUGUI
+    [SerializeField] private TextMeshProUGUI comboText;  // Changed to TextMeshProUGUI
 
     private void Awake()
     {
@@ -136,6 +146,8 @@ public class GameManager : MonoBehaviour
         if (firstGuessCard == secondGuessCard)
         {
             PlaySound(matchSound); // Play match sound
+            UpdateScore(10);  // Increase score for correct match
+            IncreaseCombo();
             yield return new WaitForSeconds(0.5f);
             btns[firstGuessIndex].image.color = btns[secondGuessIndex].image.color = new Color(0, 0, 0, 0);
             CheckGameEnded();
@@ -143,6 +155,7 @@ public class GameManager : MonoBehaviour
         else
         {
             PlaySound(mismatchSound); // Play mismatch sound
+            ResetCombo();  // Reset combo if mismatch
             yield return new WaitForSeconds(0.5f);
             StartCoroutine(FlipCardBack(btns[firstGuessIndex]));
             StartCoroutine(FlipCardBack(btns[secondGuessIndex]));
@@ -150,6 +163,29 @@ public class GameManager : MonoBehaviour
         }
 
         firstGuess = secondGuess = false;
+    }
+
+    void UpdateScore(int points)
+    {
+        score += points * comboMultiplier;  // Apply combo multiplier to score
+        scoreText.text = "Score: " + score;  // Update the score display
+    }
+
+    void IncreaseCombo()
+    {
+        currentCombo++;
+        if (currentCombo >= 2)
+        {
+            comboMultiplier = currentCombo;  // Increase combo multiplier after 2 consecutive correct matches
+        }
+        comboText.text = "Combo: " + comboMultiplier;  // Update the combo display
+    }
+
+    void ResetCombo()
+    {
+        currentCombo = 0;
+        comboMultiplier = 1;
+        comboText.text = "Combo: " + comboMultiplier;  // Reset combo display
     }
 
     IEnumerator FlipCard(Button button, Sprite newSprite)
@@ -224,7 +260,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Helper function to play sound effects
     void PlaySound(AudioClip clip)
     {
         audioSource.PlayOneShot(clip);
